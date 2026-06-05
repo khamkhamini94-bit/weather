@@ -1,16 +1,14 @@
-"""Split raw class folders into data/train/ and data/val/ with 80/20 stratified split."""
+"""Split raw class folders into data/train/ and data/val/ with 80/20 split."""
 import shutil
 import random
 from pathlib import Path
-
-from sklearn.model_selection import train_test_split
 
 DATA = Path(__file__).parent / "data"
 TRAIN = DATA / "train"
 VAL = DATA / "val"
 SEED = 42
+SPLIT = 0.8
 
-# Source class folders → target class names
 CLASS_MAP = {
     "Cloudy": "cloudy",
     "Rain": "rainy",
@@ -28,11 +26,11 @@ for src_name, tgt_name in CLASS_MAP.items():
 
     images = list(src_dir.glob("*"))
     images = [p for p in images if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}]
-    labels = [tgt_name] * len(images)
+    random.shuffle(images)
 
-    train_imgs, val_imgs = train_test_split(
-        images, test_size=0.2, random_state=SEED, stratify=labels,
-    )
+    split_idx = int(len(images) * SPLIT)
+    train_imgs = images[:split_idx]
+    val_imgs = images[split_idx:]
 
     (TRAIN / tgt_name).mkdir(parents=True, exist_ok=True)
     (VAL / tgt_name).mkdir(parents=True, exist_ok=True)
@@ -42,6 +40,6 @@ for src_name, tgt_name in CLASS_MAP.items():
     for p in val_imgs:
         shutil.copy2(p, VAL / tgt_name / p.name)
 
-    print(f"{src_name} → {tgt_name}: train={len(train_imgs)}, val={len(val_imgs)}")
+    print(f"{src_name} -> {tgt_name}: train={len(train_imgs)}, val={len(val_imgs)}")
 
 print("\nDone. Original files preserved. Remove them manually when ready.")
