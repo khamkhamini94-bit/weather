@@ -1,0 +1,22 @@
+# Data
+data/
+
+# Pretrained weights
+pretrained/
+
+# Output (checkpoints, history)
+output/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
+
+# PDFs
+*.pdf
