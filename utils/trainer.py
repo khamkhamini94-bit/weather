@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from sklearn.model_selection import StratifiedKFold
 from torch.cuda.amp import GradScaler, autocast
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm import tqdm
 
 from config import (
@@ -15,6 +15,7 @@ from config import (
     EPOCHS,
     LR,
     WEIGHT_DECAY,
+    LLRD_DECAY,
     LABEL_SMOOTHING,
     FOCAL_GAMMA,
     FOCAL_ALPHA,
@@ -27,10 +28,12 @@ from config import (
     FOLD_TO_RUN,
     USE_AMP,
     EMA_DECAY,
+    USE_WEIGHTED_SAMPLER,
     MODEL_DIR,
     LOG_DIR,
     OUTPUT_DIR,
 )
+import config  # module reference for live FOLD_TO_RUN reads
 from data.dataset import (
     TransformSubset,
     WeatherDataset,
@@ -38,7 +41,7 @@ from data.dataset import (
     train_transforms,
     val_transforms,
 )
-from models.convnext import build_model
+from models.convnext import build_model, get_param_groups
 from utils.losses import FocalLossWithLabelSmoothing
 from utils.metrics import AverageMeter, ModelEMA, compute_all_metrics, compute_f1
 
@@ -100,9 +103,21 @@ def run_fold(fold_idx, train_idx, val_idx, dataset, holdout_loader=None):
     train_ds = TransformSubset(dataset, train_idx, train_transforms)
     val_ds = TransformSubset(dataset, val_idx, val_transforms)
 
+    sampler_args = {}
+    if USE_WEIGHTED_SAMPLER:
+        class_counts = np.bincount(train_ds.labels)
+        weights = 1.0 / class_counts[train_ds.labels]
+        sampler_args = {
+            "sampler": WeightedRandomSampler(torch.tensor(weights), len(weights)),
+            "shuffle": False,
+        }
+    else:
+        sampler_args = {"shuffle": True}
+
     train_loader = DataLoader(
-        train_ds, batch_size=BATCH_SIZE, shuffle=True,
+        train_ds, batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS, pin_memory=True, drop_last=True,
+        **sampler_args,
     )
     val_loader = DataLoader(
         val_ds, batch_size=BATCH_SIZE, shuffle=False,
@@ -121,7 +136,8 @@ def run_fold(fold_idx, train_idx, val_idx, dataset, holdout_loader=None):
     )
 
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY
+        get_param_groups(model, base_lr=LR, decay=LLRD_DECAY),
+        weight_decay=WEIGHT_DECAY,
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer, T_0=T_0, T_mult=T_MULT
@@ -250,7 +266,7 @@ def run_train():
     all_targets = [train_ds[i][1] for i in range(len(train_ds))]
     skf = StratifiedKFold(n_splits=K_FOLDS, shuffle=True, random_state=42)
 
-    folds_to_run = range(K_FOLDS) if FOLD_TO_RUN == -1 else [FOLD_TO_RUN]
+    folds_to_run = range(K_FOLDS) if config.FOLD_TO_RUN == -1 else [config.FOLD_TO_RUN]
 
     f1_scores = []
     for fold in folds_to_run:

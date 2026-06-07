@@ -36,24 +36,30 @@ COLOR_JITTER_HUE = 0.05
 AFFINE_PROB = 0.5
 HFLIP_PROB = 0.5
 RRC_SCALE = (0.7, 1.0)
+RANDOM_ERASING_PROB = 0.3
+RANDOM_ERASING_SCALE = (0.02, 0.15)  # hole size: 2%~15% of image area
+
+# ── Data Loading ────────────────────────────────────
+USE_WEIGHTED_SAMPLER = True
 
 # ── Training ────────────────────────────────────────
 EPOCHS = 100
-LR = 5e-4
-WEIGHT_DECAY = 0.1
+LR = 2e-4
+WEIGHT_DECAY = 0.05
+LLRD_DECAY = 0.85  # per-stage LR multiplier for layer-wise LR decay
 LABEL_SMOOTHING = 0.1
 FOCAL_GAMMA = 2.0
 FOCAL_ALPHA = None  # set to class weights tensor to enable
-T_0 = 10  # CosineAnnealingWarmRestarts cycle
-T_MULT = 2
+T_0 = 30  # CosineAnnealingWarmRestarts cycle
+T_MULT = 1
 
 # ── K-Fold ──────────────────────────────────────────
 K_FOLDS = 5
 FOLD_TO_RUN = 0  # -1 runs all folds sequentially
 
 # ── Early Stopping ──────────────────────────────────
-EARLY_STOP_PATIENCE = 5
-MIN_EPOCHS = 5        # don't stop before this epoch
+EARLY_STOP_PATIENCE = 6
+MIN_EPOCHS = 8        # don't stop before this epoch
 MIN_DELTA = 0.001     # F1 improvement must exceed this threshold to count
 
 # ── Mixed Precision ─────────────────────────────────

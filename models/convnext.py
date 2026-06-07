@@ -92,3 +92,28 @@ def build_model(num_classes=None):
         import config
         config.NUM_CLASSES = num_classes
     return WeatherClassifier()
+
+
+def get_param_groups(model, base_lr, decay=0.85):
+    """Layer-wise LR decay: shallow layers get lower LR.
+
+    stem    → lr * decay^5  (lowest — edges/textures are transferable)
+    stage0  → lr * decay^4
+    stage1  → lr * decay^3
+    stage2  → lr * decay^2
+    stage3  → lr * decay^1
+    neck    → lr           (full LR — task-specific classifier)
+    """
+    backbone = model.backbone
+    groups = [
+        # Classifier: full LR
+        {"name": "neck", "params": model.neck.parameters(), "lr": base_lr},
+        {"name": "gap_gem", "params": list(model.gap.parameters()) + list(model.gem.parameters()), "lr": base_lr},
+        # ConvNeXt stages: decreasing LR from near-output to near-input
+        {"name": "stage3", "params": backbone.stages[3].parameters(), "lr": base_lr * decay},
+        {"name": "stage2", "params": backbone.stages[2].parameters(), "lr": base_lr * (decay ** 2)},
+        {"name": "stage1", "params": backbone.stages[1].parameters(), "lr": base_lr * (decay ** 3)},
+        {"name": "stage0", "params": backbone.stages[0].parameters(), "lr": base_lr * (decay ** 4)},
+        {"name": "stem",   "params": backbone.stem.parameters(),   "lr": base_lr * (decay ** 5)},
+    ]
+    return groups

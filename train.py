@@ -8,7 +8,7 @@ Usage:
 import argparse
 import sys
 
-from config import FOLD_TO_RUN, K_FOLDS
+import config
 from utils.trainer import run_train
 
 
@@ -20,11 +20,11 @@ def main():
     args = parser.parse_args()
 
     if args.all:
-        sys.modules["config"].FOLD_TO_RUN = -1
+        config.FOLD_TO_RUN = -1
     elif args.fold is not None:
-        sys.modules["config"].FOLD_TO_RUN = args.fold
+        config.FOLD_TO_RUN = args.fold
 
-    print(f"Running fold(s): {'all' if FOLD_TO_RUN == -1 else FOLD_TO_RUN}")
+    print(f"Running fold(s): {'all' if config.FOLD_TO_RUN == -1 else config.FOLD_TO_RUN}")
     run_train()
 
 
